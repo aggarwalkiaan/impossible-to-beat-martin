@@ -130,13 +130,14 @@
                 onSnapEnd: function () { board.position(game.fen()) }
             });
 
-            setTimeout(martinBlitz, 1000);
+            // Let the board render, then run the blitz
+            setTimeout(martinBlitz, 800);
         }
 
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(() => {
-                if (blitzDone && !isGameOver) {
+                if (blitzDone && !isGameOver && game.turn() === 'w') {
                     playerTime--;
                     updateTimerDisplay();
                     if (playerTime <= 0) endGame("TIME EXPIRED!", "Martin: Too slow, kid.");
@@ -152,7 +153,7 @@
 
         function onDragStart(source, piece) {
             if (isGameOver || !blitzDone) return false;
-            // Player is always White in this setup
+            // Player is always White pieces ('w')
             if (piece.search(/^b/) !== -1) return false;
         }
 
@@ -160,7 +161,7 @@
             if (source === target) return 'snapback';
             var piece = game.get(source);
 
-            // SPEED PENALTY CHECK (Only active once the player has made at least one move base anchor)
+            // SPEED PENALTY CHECK
             if (blitzDone && lastMoveTimestamp) {
                 if (Date.now() - lastMoveTimestamp < 3000) {
                     playerTime -= 15;
@@ -182,7 +183,6 @@
                 return;
             }
 
-            // Temporarily update internal logic to see if it's legal
             var move = game.move({ from: source, to: target, promotion: 'q' });
             if (move === null) return 'snapback';
 
@@ -199,19 +199,15 @@
             $('#player-timer').removeClass('active-timer');
             $('#martin-timer').addClass('active-timer');
             
-            // Hand control back to chess engine for Martin
-            game.setTurn('b'); 
-            setTimeout(makeMartinMove, 500);
+            setTimeout(makeMartinMove, 600);
         }
 
         function makeMartinMove() {
             if (isGameOver) return;
             
-            // Force turn to black just in case logic mismatched
-            game.setTurn('b');
             var moves = game.moves({ verbose: true });
             if (moves.length === 0) {
-                if (game.in_checkmate()) endGame("VICTORY?", "How did you beat Martin?!");
+                if (game.in_checkmake()) endGame("VICTORY?", "How did you beat Martin?!");
                 else endGame("DRAW", "Stalemate.");
                 return;
             }
@@ -235,14 +231,10 @@
             board.position(game.fen());
             epSquare = null;
             
-            // Reset the speed penalty anchor right now as the player turn begins
             lastMoveTimestamp = Date.now(); 
 
             $('#martin-timer').removeClass('active-timer');
             $('#player-timer').addClass('active-timer');
-
-            // Force turn state back to white so player can drag
-            game.setTurn('w');
 
             if (kingsAreTouching()) { endGame("TOUCH OF DEATH!", "Martin tagged you."); return; }
             if (game.in_checkmate()) { endGame("CHECKMATE!", "Martin wins again."); return; }
@@ -266,31 +258,34 @@
         }
 
         function martinBlitz() {
-            $('#chat').text("Martin is taking his 3-move head start...");
+            $('#chat').text("Martin is stealing his 3-move head start...");
             
-            // Play 3 random/valid black moves without giving player penalty
-            game.setTurn('b');
+            // Step 1: Let the engine play legal starting moves naturally
             var m1 = game.moves()[Math.floor(Math.random() * game.moves().length)];
             if(m1) game.move(m1);
             
-            game.setTurn('b');
             var m2 = game.moves()[Math.floor(Math.random() * game.moves().length)];
             if(m2) game.move(m2);
             
-            game.setTurn('b');
             var m3 = game.moves()[Math.floor(Math.random() * game.moves().length)];
             if(m3) game.move(m3);
 
             board.position(game.fen());
             
-            // Initialize setup for Player's Turn
-            game.setTurn('w');
+            // Step 2: Swap the player to White cleanly so the engine stays happy
+            let fen = game.fen();
+            let components = fen.split(' ');
+            components[1] = 'w'; // Force turn player indicator to White
+            let newFen = components.join(' ');
+            
+            game = new Chess(newFen);
+            
             blitzDone = true; 
             startTimer();
             
             $('#status').text("CLOCK IS TICKING!");
             $('#player-timer').addClass('active-timer');
-            lastMoveTimestamp = Date.now(); // Starts tracker cleanly here!
+            lastMoveTimestamp = Date.now(); 
         }
     </script>
 </body>
