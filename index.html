@@ -41,6 +41,7 @@
         <div class="rule-card">
             <p style="text-align:center; color:#ff4444; font-weight:bold; margin-top:0;">THE RULES OF DEFEAT:</p>
             <ul style="font-size: 0.85rem; line-height: 1.4; padding-right: 10px;">
+                <li><b>Random Spawn:</b> You will randomly start as White or Black!</li>
                 <li><b>Fast-Move Penalty:</b> Move in &lt; 3s = <b>-15 SECONDS.</b></li>
                 <li><b>Unlimited Martin:</b> His clock is infinite. Yours is not.</li>
                 <li><b>Nuh-Uh Shield:</b> 8% chance Martin refuses a capture.</li>
@@ -73,7 +74,7 @@
                 <span class="timer-val">∞</span>
             </div>
             <div class="timer-box" id="player-timer">
-                <span style="font-size: 0.7rem; color: #888;">PLAYER</span><br>
+                <span style="font-size: 0.7rem; color: #888;" id="player-label">PLAYER</span><br>
                 <span class="timer-val" id="time-left">00:00</span>
             </div>
         </div>
@@ -103,6 +104,8 @@
         var lastMoveTimestamp = null;
         var lastMovedPieceSource = null;
         var epSquare = null;
+        var playerColor = 'w'; 
+        var martinColor = 'b';
 
         function showTimeScreen() {
             $('#home-screen').hide();
@@ -121,23 +124,28 @@
             $('#game-container').show();
             updateTimerDisplay();
 
+            playerColor = Math.random() < 0.5 ? 'w' : 'b';
+            martinColor = (playerColor === 'w') ? 'b' : 'w';
+            
+            $('#player-label').text(`YOU (${playerColor === 'w' ? 'WHITE' : 'BLACK'})`);
+
             board = Chessboard('board', {
                 draggable: true,
                 position: 'start',
+                orientation: playerColor === 'w' ? 'white' : 'black', 
                 pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
                 onDragStart: onDragStart,
                 onDrop: onDrop,
                 onSnapEnd: function () { board.position(game.fen()) }
             });
 
-            // Let the board render, then run the blitz
             setTimeout(martinBlitz, 800);
         }
 
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(() => {
-                if (blitzDone && !isGameOver && game.turn() === 'w') {
+                if (blitzDone && !isGameOver && game.turn() === playerColor) {
                     playerTime--;
                     updateTimerDisplay();
                     if (playerTime <= 0) endGame("TIME EXPIRED!", "Martin: Too slow, kid.");
@@ -153,8 +161,7 @@
 
         function onDragStart(source, piece) {
             if (isGameOver || !blitzDone) return false;
-            // Player is always White pieces ('w')
-            if (piece.search(/^b/) !== -1) return false;
+            if (piece.search(new RegExp('^' + martinColor)) !== -1) return false;
         }
 
         function onDrop(source, target) {
@@ -207,7 +214,7 @@
             
             var moves = game.moves({ verbose: true });
             if (moves.length === 0) {
-                if (game.in_checkmake()) endGame("VICTORY?", "How did you beat Martin?!");
+                if (game.in_checkmate()) endGame("VICTORY?", "How did you beat Martin?!");
                 else endGame("DRAW", "Stalemate.");
                 return;
             }
@@ -260,22 +267,24 @@
         function martinBlitz() {
             $('#chat').text("Martin is stealing his 3-move head start...");
             
-            // Step 1: Let the engine play legal starting moves naturally
-            var m1 = game.moves()[Math.floor(Math.random() * game.moves().length)];
-            if(m1) game.move(m1);
+            if (playerColor === 'w') {
+                game = new Chess("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1");
+            } else {
+                game = new Chess("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+            }
             
-            var m2 = game.moves()[Math.floor(Math.random() * game.moves().length)];
-            if(m2) game.move(m2);
-            
-            var m3 = game.moves()[Math.floor(Math.random() * game.moves().length)];
-            if(m3) game.move(m3);
+            for (let i = 0; i < 3; i++) {
+                var moves = game.moves();
+                if (moves.length > 0) {
+                    game.move(moves[Math.floor(Math.random() * moves.length)]);
+                }
+            }
 
             board.position(game.fen());
             
-            // Step 2: Swap the player to White cleanly so the engine stays happy
             let fen = game.fen();
             let components = fen.split(' ');
-            components[1] = 'w'; // Force turn player indicator to White
+            components[1] = playerColor; 
             let newFen = components.join(' ');
             
             game = new Chess(newFen);
