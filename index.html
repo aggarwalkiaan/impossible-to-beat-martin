@@ -8,7 +8,6 @@
     <style>
         body { background: #0a0a0a; color: #eee; font-family: 'Segoe UI', sans-serif; text-align: center; margin: 0; overflow-x: hidden; }
         
-        /* SCREENS */
         .screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
         #time-screen, #game-container { display: none; }
 
@@ -21,7 +20,6 @@
         .custom-input-container { margin-top: 20px; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #444; }
         #custom-min { background: #222; border: 1px solid #ff0000; color: white; padding: 8px; width: 60px; font-size: 1.1rem; text-align: center; border-radius: 4px; }
         
-        /* GAME UI */
         .timer-container { display: flex; justify-content: center; gap: 20px; margin-bottom: 10px; padding-top: 20px; }
         .timer-box { background: #1a1a1a; padding: 10px 20px; border-radius: 5px; border: 2px solid #333; min-width: 120px; position: relative; }
         .timer-val { font-size: 1.8rem; font-weight: bold; font-family: monospace; color: white; }
@@ -29,7 +27,6 @@
 
         #board { width: 360px; margin: 0 auto; border: 6px solid #b30000; position: relative; }
         
-        /* POPUP MESSAGES */
         .alert-msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px 20px; font-weight: bold; display: none; z-index: 1000; border-radius: 5px; pointer-events: none; white-space: nowrap; }
         #nuh-uh { background: red; color: white; box-shadow: 0 0 20px black; }
         #penalty-msg { background: #ffae00; color: black; top: 30%; box-shadow: 0 0 20px black; }
@@ -44,7 +41,7 @@
         <div class="rule-card">
             <p style="text-align:center; color:#ff4444; font-weight:bold; margin-top:0;">THE RULES OF DEFEAT:</p>
             <ul style="font-size: 0.85rem; line-height: 1.4; padding-right: 10px;">
-                <li><b>Fast-Move Penalty:</b> Move in < 3s = <b>-15 SECONDS.</b></li>
+                <li><b>Fast-Move Penalty:</b> Move in &lt; 3s = <b>-15 SECONDS.</b></li>
                 <li><b>Unlimited Martin:</b> His clock is infinite. Yours is not.</li>
                 <li><b>Nuh-Uh Shield:</b> 8% chance Martin refuses a capture.</li>
                 <li><b>God En Passant:</b> Martin takes any piece next to his pawns.</li>
@@ -127,7 +124,6 @@
             board = Chessboard('board', {
                 draggable: true,
                 position: 'start',
-                // FIX: External Piece Images
                 pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
                 onDragStart: onDragStart,
                 onDrop: onDrop,
@@ -138,8 +134,9 @@
         }
 
         function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(() => {
-                if (game.turn() === 'w' && blitzDone && !isGameOver) {
+                if (blitzDone && !isGameOver) {
                     playerTime--;
                     updateTimerDisplay();
                     if (playerTime <= 0) endGame("TIME EXPIRED!", "Martin: Too slow, kid.");
@@ -154,25 +151,28 @@
         }
 
         function onDragStart(source, piece) {
-            if (isGameOver || !blitzDone || piece.search(/^b/) !== -1) return false;
+            if (isGameOver || !blitzDone) return false;
+            // Player is always White in this setup
+            if (piece.search(/^b/) !== -1) return false;
         }
 
         function onDrop(source, target) {
+            if (source === target) return 'snapback';
             var piece = game.get(source);
 
-            // SPEED PENALTY CHECK
-            if (lastMoveTimestamp) {
+            // SPEED PENALTY CHECK (Only active once the player has made at least one move base anchor)
+            if (blitzDone && lastMoveTimestamp) {
                 if (Date.now() - lastMoveTimestamp < 3000) {
                     playerTime -= 15;
                     if (playerTime < 0) playerTime = 0;
                     updateTimerDisplay();
-                    $('#penalty-msg').fadeIn(100).delay(1000).fadeOut(400);
+                    $('#penalty-msg').stop(true, true).fadeIn(100).delay(1000).fadeOut(400);
                 }
             }
 
             // CAPTURE SHIELD CHECK
             if (game.get(target) && Math.random() < 0.08) {
-                $('#nuh-uh').fadeIn(100).delay(800).fadeOut(400);
+                $('#nuh-uh').stop(true, true).fadeIn(100).delay(800).fadeOut(400);
                 return 'snapback';
             }
 
@@ -182,27 +182,40 @@
                 return;
             }
 
+            // Temporarily update internal logic to see if it's legal
             var move = game.move({ from: source, to: target, promotion: 'q' });
             if (move === null) return 'snapback';
-
-            epSquare = target;
-            lastMovedPieceSource = target;
 
             // FROZEN KING RULE
             if (move.piece === 'k' && !move.flags.includes('k') && !move.flags.includes('q')) {
                 game.undo(); return 'snapback';
             }
 
+            epSquare = target;
+            lastMovedPieceSource = target;
+
             if (kingsAreTouching()) { endGame("TOUCH OF DEATH!", "Martin: Tag, you're it!"); return; }
 
             $('#player-timer').removeClass('active-timer');
             $('#martin-timer').addClass('active-timer');
+            
+            // Hand control back to chess engine for Martin
+            game.setTurn('b'); 
             setTimeout(makeMartinMove, 500);
         }
 
         function makeMartinMove() {
             if (isGameOver) return;
+            
+            // Force turn to black just in case logic mismatched
+            game.setTurn('b');
             var moves = game.moves({ verbose: true });
+            if (moves.length === 0) {
+                if (game.in_checkmate()) endGame("VICTORY?", "How did you beat Martin?!");
+                else endGame("DRAW", "Stalemate.");
+                return;
+            }
+
             var chosenMove = moves[Math.floor(Math.random() * moves.length)];
 
             // GOD EN PASSANT
@@ -221,10 +234,15 @@
             game.move(chosenMove);
             board.position(game.fen());
             epSquare = null;
-            lastMoveTimestamp = Date.now();
+            
+            // Reset the speed penalty anchor right now as the player turn begins
+            lastMoveTimestamp = Date.now(); 
 
             $('#martin-timer').removeClass('active-timer');
             $('#player-timer').addClass('active-timer');
+
+            // Force turn state back to white so player can drag
+            game.setTurn('w');
 
             if (kingsAreTouching()) { endGame("TOUCH OF DEATH!", "Martin tagged you."); return; }
             if (game.in_checkmate()) { endGame("CHECKMATE!", "Martin wins again."); return; }
@@ -249,13 +267,30 @@
 
         function martinBlitz() {
             $('#chat').text("Martin is taking his 3-move head start...");
-            makeMartinMove();
-            setTimeout(() => { makeMartinMove(); setTimeout(() => {
-                makeMartinMove(); blitzDone = true; startTimer();
-                $('#status').text("CLOCK IS TICKING!");
-                lastMoveTimestamp = Date.now();
-                $('#player-timer').addClass('active-timer');
-            }, 600); }, 600);
+            
+            // Play 3 random/valid black moves without giving player penalty
+            game.setTurn('b');
+            var m1 = game.moves()[Math.floor(Math.random() * game.moves().length)];
+            if(m1) game.move(m1);
+            
+            game.setTurn('b');
+            var m2 = game.moves()[Math.floor(Math.random() * game.moves().length)];
+            if(m2) game.move(m2);
+            
+            game.setTurn('b');
+            var m3 = game.moves()[Math.floor(Math.random() * game.moves().length)];
+            if(m3) game.move(m3);
+
+            board.position(game.fen());
+            
+            // Initialize setup for Player's Turn
+            game.setTurn('w');
+            blitzDone = true; 
+            startTimer();
+            
+            $('#status').text("CLOCK IS TICKING!");
+            $('#player-timer').addClass('active-timer');
+            lastMoveTimestamp = Date.now(); // Starts tracker cleanly here!
         }
     </script>
 </body>
