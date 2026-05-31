@@ -27,9 +27,9 @@
 
         #board { width: 360px; margin: 0 auto; border: 6px solid #b30000; position: relative; }
         
-        .alert-msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px 20px; font-weight: bold; display: none; z-index: 1000; border-radius: 5px; pointer-events: none; white-space: nowrap; }
+        .alert-msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 15px 25px; font-weight: bold; display: none; z-index: 1000; border-radius: 5px; pointer-events: none; white-space: nowrap; font-size: 1.1rem; }
         #nuh-uh { background: red; color: white; box-shadow: 0 0 20px black; }
-        #penalty-msg { background: #ffae00; color: black; top: 30%; box-shadow: 0 0 20px black; }
+        #penalty-msg { background: #ffae00; color: black; top: 40%; box-shadow: 0 0 30px rgba(0,0,0,0.8); border: 2px solid red; }
 
         .status-panel { background: #1a1a1a; margin: 15px auto; width: 340px; padding: 10px; border-radius: 5px; border-bottom: 3px solid red; }
     </style>
@@ -43,7 +43,7 @@
             <p style="text-align:center; color:#ff4444; font-weight:bold; margin-top:0;">THE RULES OF DEFEAT:</p>
             <ul style="font-size: 0.85rem; line-height: 1.4; padding-right: 10px;">
                 <li><b>Random Spawn:</b> You will randomly start as White or Black!</li>
-                <li><b>Fast-Move Penalty:</b> Move in &lt; 3s = <b>-15 SECONDS.</b></li>
+                <li><b>Fast-Move Penalty:</b> Move in &lt; 3s = <b>15s TOTAL BOARD FREEZE.</b></li>
                 <li><b>Unlimited Martin:</b> His clock is infinite. Yours is not.</li>
                 <li><b>Nuh-Uh Shield:</b> 8% chance Martin refuses a capture.</li>
                 <li><b>God En Passant:</b> Martin takes any piece next to his pawns.</li>
@@ -84,7 +84,7 @@
 
         <div id="board">
             <div id="nuh-uh" class="alert-msg">YOU CAN'T TAKE THIS PIECE!</div>
-            <div id="penalty-msg" class="alert-msg">TOO FAST! -15 SECONDS</div>
+            <div id="penalty-msg" class="alert-msg">TOO FAST! BOARD FROZEN: <span id="penalty-countdown">15</span>s</div>
         </div>
 
         <div class="status-panel">
@@ -102,6 +102,7 @@
         var game = new Chess();
         var blitzDone = false;
         var isGameOver = false;
+        var isMoveFrozen = false; 
         var playerTime = 0;
         var timerInterval = null;
         var lastMoveTimestamp = null;
@@ -163,22 +164,52 @@
         }
 
         function onDragStart(source, piece) {
-            if (isGameOver || !blitzDone) return false;
+            // Completely disable dragging if game is over, blitz is happening, or board is frozen for 15s
+            if (isGameOver || !blitzDone || isMoveFrozen) return false;
             if (piece.search(new RegExp('^' + martinColor)) !== -1) return false;
         }
 
+        function trigger15SecondFreeze() {
+            isMoveFrozen = true;
+            let timeLeft = 15;
+            
+            $('#penalty-countdown').text(timeLeft);
+            $('#penalty-msg').stop(true, true).fadeIn(100);
+            $('#status').text("BOARD IS LOCKED OUT!");
+
+            let freezeInterval = setInterval(() => {
+                timeLeft--;
+                $('#penalty-countdown').text(timeLeft);
+                
+                if (timeLeft <= 0) {
+                    clearInterval(freezeInterval);
+                    $('#penalty-msg').fadeOut(400);
+                    isMoveFrozen = false; // Unfreezes the board layout completely
+                    if (!isGameOver) $('#status').text("Your turn... wait 3s!");
+                }
+            }, 1000);
+        }
+
         function onDrop(source, target) {
+            if (isMoveFrozen) return 'snapback';
             if (source === target) return 'snapback';
             var piece = game.get(source);
 
-            // Verified 3-Second Rule Checking
+            // Verify if the move attempted is even legally allowed
+            var moveCheck = game.move({ from: source, to: target, promotion: 'q' });
+            if (moveCheck === null) return 'snapback'; // Ignore accidental slips/illegal moves
+            game.undo(); // Clear simulated check
+
+            // ⏱️ HARD 15-SECOND LOCKOUT RULE (Fires on valid moves only)
             if (blitzDone && lastMoveTimestamp) {
                 var timeElapsed = Date.now() - lastMoveTimestamp;
                 if (timeElapsed < 3000) {
                     playerTime -= 15;
                     if (playerTime < 0) playerTime = 0;
                     updateTimerDisplay();
-                    $('#penalty-msg').stop(true, true).fadeIn(100).delay(1000).fadeOut(400);
+                    
+                    trigger15SecondFreeze(); // Execute full freeze loop
+                    return 'snapback'; 
                 }
             }
 
@@ -193,7 +224,6 @@
             }
 
             var move = game.move({ from: source, to: target, promotion: 'q' });
-            if (move === null) return 'snapback';
 
             if (move.piece === 'k' && !move.flags.includes('k') && !move.flags.includes('q')) {
                 game.undo(); return 'snapback';
@@ -238,7 +268,6 @@
             board.position(game.fen());
             epSquare = null;
             
-            // Stamp turn-start right now so the player has to wait 3 seconds
             lastMoveTimestamp = Date.now(); 
 
             $('#martin-timer').removeClass('active-timer');
@@ -246,7 +275,7 @@
 
             if (kingsAreTouching()) { endGame("TOUCH OF DEATH!", "Martin tagged you."); return; }
             if (game.in_checkmate()) { endGame("CHECKMATE!", "Martin wins again."); return; }
-            if (!isGameOver) $('#status').text("Your turn... wait 3s!");
+            if (!isGameOver && !isMoveFrozen) $('#status').text("Your turn... wait 3s!");
         }
 
         function kingsAreTouching() {
