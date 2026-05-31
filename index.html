@@ -171,8 +171,10 @@
             if (source === target) return 'snapback';
             var piece = game.get(source);
 
+            // Verified 3-Second Rule Checking
             if (blitzDone && lastMoveTimestamp) {
-                if (Date.now() - lastMoveTimestamp < 3000) {
+                var timeElapsed = Date.now() - lastMoveTimestamp;
+                if (timeElapsed < 3000) {
                     playerTime -= 15;
                     if (playerTime < 0) playerTime = 0;
                     updateTimerDisplay();
@@ -236,6 +238,7 @@
             board.position(game.fen());
             epSquare = null;
             
+            // Stamp turn-start right now so the player has to wait 3 seconds
             lastMoveTimestamp = Date.now(); 
 
             $('#martin-timer').removeClass('active-timer');
