@@ -36,6 +36,7 @@
 </head>
 <body>
 
+    <!-- 1. HOME SCREEN -->
     <div id="home-screen" class="screen">
         <div class="logo">IMPOSSIBLE MARTIN</div>
         <div class="rule-card">
@@ -47,12 +48,13 @@
                 <li><b>Nuh-Uh Shield:</b> 8% chance Martin refuses a capture.</li>
                 <li><b>God En Passant:</b> Martin takes any piece next to his pawns.</li>
                 <li><b>Frozen King:</b> Your King cannot move. Touch = Loss.</li>
-                <li><b>Stamina:</b> Moving the same piece 2x = LOSS.</li>
+                <li><b>Checkmate Only:</b> Stalemate = Loss. No draws.</li>
             </ul>
         </div>
         <button class="btn" onclick="showTimeScreen()">START CHALLENGE</button>
     </div>
 
+    <!-- 2. TIME SELECTION -->
     <div id="time-screen" class="screen">
         <div class="logo" style="font-size: 2rem;">SELECT YOUR TIME</div>
         <div style="display: flex; flex-wrap: wrap; justify-content: center;">
@@ -67,6 +69,7 @@
         </div>
     </div>
 
+    <!-- 3. MAIN GAME -->
     <div id="game-container">
         <div class="timer-container">
             <div class="timer-box" id="martin-timer">
@@ -103,3 +106,197 @@
         var timerInterval = null;
         var lastMoveTimestamp = null;
         var lastMovedPieceSource = null;
+        var epSquare = null;
+        var playerColor = 'w'; 
+        var martinColor = 'b';
+
+        function showTimeScreen() {
+            $('#home-screen').hide();
+            $('#time-screen').css('display', 'flex');
+        }
+
+        function startCustom() {
+            let val = parseInt($('#custom-min').val());
+            if (val > 60) val = 60; if (val < 1 || isNaN(val)) val = 1;
+            initGame(val * 60);
+        }
+
+        function initGame(seconds) {
+            playerTime = seconds;
+            $('#time-screen').hide();
+            $('#game-container').show();
+            updateTimerDisplay();
+
+            playerColor = Math.random() < 0.5 ? 'w' : 'b';
+            martinColor = (playerColor === 'w') ? 'b' : 'w';
+            
+            $('#player-label').text(`YOU (${playerColor === 'w' ? 'WHITE' : 'BLACK'})`);
+
+            board = Chessboard('board', {
+                draggable: true,
+                position: 'start',
+                orientation: playerColor === 'w' ? 'white' : 'black', 
+                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
+                onDragStart: onDragStart,
+                onDrop: onDrop,
+                onSnapEnd: function () { board.position(game.fen()) }
+            });
+
+            setTimeout(martinBlitz, 800);
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (blitzDone && !isGameOver && game.turn() === playerColor) {
+                    playerTime--;
+                    updateTimerDisplay();
+                    if (playerTime <= 0) endGame("TIME EXPIRED!", "Martin: Too slow, kid.");
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            let m = Math.floor(playerTime / 60);
+            let s = playerTime % 60;
+            $('#time-left').text(`${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+        }
+
+        function onDragStart(source, piece) {
+            if (isGameOver || !blitzDone) return false;
+            if (piece.search(new RegExp('^' + martinColor)) !== -1) return false;
+        }
+
+        function onDrop(source, target) {
+            if (source === target) return 'snapback';
+            var piece = game.get(source);
+
+            if (blitzDone && lastMoveTimestamp) {
+                if (Date.now() - lastMoveTimestamp < 3000) {
+                    playerTime -= 15;
+                    if (playerTime < 0) playerTime = 0;
+                    updateTimerDisplay();
+                    $('#penalty-msg').stop(true, true).fadeIn(100).delay(1000).fadeOut(400);
+                }
+            }
+
+            if (game.get(target) && Math.random() < 0.08) {
+                $('#nuh-uh').stop(true, true).fadeIn(100).delay(800).fadeOut(400);
+                return 'snapback';
+            }
+
+            if (lastMovedPieceSource === source && piece.type !== 'n') {
+                endGame("EXHAUSTION LOSS!", "Martin: That piece is too tired.");
+                return;
+            }
+
+            var move = game.move({ from: source, to: target, promotion: 'q' });
+            if (move === null) return 'snapback';
+
+            if (move.piece === 'k' && !move.flags.includes('k') && !move.flags.includes('q')) {
+                game.undo(); return 'snapback';
+            }
+
+            epSquare = target;
+            lastMovedPieceSource = target;
+
+            if (kingsAreTouching()) { endGame("TOUCH OF DEATH!", "Martin: Tag, you're it!"); return; }
+
+            $('#player-timer').removeClass('active-timer');
+            $('#martin-timer').addClass('active-timer');
+            
+            setTimeout(makeMartinMove, 600);
+        }
+
+        function makeMartinMove() {
+            if (isGameOver) return;
+            
+            var moves = game.moves({ verbose: true });
+            if (moves.length === 0) {
+                if (game.in_checkmate()) endGame("VICTORY?", "How did you beat Martin?!");
+                else endGame("DRAW", "Stalemate.");
+                return;
+            }
+
+            var chosenMove = moves[Math.floor(Math.random() * moves.length)];
+
+            if (epSquare) {
+                moves.forEach(m => {
+                    if (m.piece === 'p') {
+                        let tCol = epSquare[0], tRow = epSquare[1];
+                        let mCol = m.from[0], mRow = m.from[1];
+                        if (mRow === tRow && Math.abs(mCol.charCodeAt(0) - tCol.charCodeAt(0)) === 1) {
+                            chosenMove = m; game.remove(epSquare);
+                        }
+                    }
+                });
+            }
+
+            game.move(chosenMove);
+            board.position(game.fen());
+            epSquare = null;
+            
+            lastMoveTimestamp = Date.now(); 
+
+            $('#martin-timer').removeClass('active-timer');
+            $('#player-timer').addClass('active-timer');
+
+            if (kingsAreTouching()) { endGame("TOUCH OF DEATH!", "Martin tagged you."); return; }
+            if (game.in_checkmate()) { endGame("CHECKMATE!", "Martin wins again."); return; }
+            if (!isGameOver) $('#status').text("Your turn... wait 3s!");
+        }
+
+        function kingsAreTouching() {
+            let wk, bk;
+            let b = game.board();
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    let p = b[r][c];
+                    if (p && p.type === 'k') { 
+                        if (p.color === 'w') wk = { r: r, c: c }; 
+                        else bk = { r: r, c: c }; 
+                    }
+                }
+            }
+            return wk && bk && Math.abs(wk.r - bk.r) <= 1 && Math.abs(wk.c - bk.c) <= 1;
+        }
+
+        function endGame(s, m) {
+            isGameOver = true;
+            clearInterval(timerInterval);
+            $('#status').text(s);
+            $('#chat').text(m);
+        }
+
+        function martinBlitz() {
+            $('#chat').text("Martin is stealing his 3-move head start...");
+            game = new Chess();
+            
+            for (let i = 0; i < 3; i++) {
+                let moves = game.moves({ verbose: true }).filter(m => m.color === martinColor);
+                if (moves.length > 0) {
+                    let randomMove = moves[Math.floor(Math.random() * moves.length)];
+                    game.move(randomMove);
+                }
+            }
+
+            board.position(game.fen());
+            
+            let fen = game.fen();
+            let components = fen.split(' ');
+            components[1] = playerColor; 
+            let newFen = components.join(' ');
+            
+            game = new Chess(newFen);
+            
+            blitzDone = true; 
+            startTimer();
+            
+            $('#status').text("YOUR TURN!");
+            $('#player-timer').addClass('active-timer');
+            $('#chat').text("Defeat him if you can.");
+            lastMoveTimestamp = Date.now(); 
+        }
+    </script>
+</body>
+</html>
