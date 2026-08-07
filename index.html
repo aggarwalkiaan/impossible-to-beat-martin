@@ -6,26 +6,144 @@
     <title>Impossible Martin | Final Boss</title>
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <style>
-        body { background: #161512; color: #bababa; font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        body { 
+            background: #161512; 
+            color: #bababa; 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            overflow: hidden; 
+        }
         
-        .screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #161512; z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        .screen { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: #161512; 
+            z-index: 2000; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 20px; 
+            box-sizing: border-box; 
+        }
         #game-container { display: none; }
 
-        .logo { font-size: 2.5rem; color: #e10000; text-shadow: 0 0 10px rgba(225,0,0,0.4); margin-bottom: 15px; font-weight: 800; letter-spacing: 1px; }
-        .rule-card { background: #262421; border-radius: 6px; padding: 20px; max-width: 550px; text-align: left; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+        .logo { 
+            font-size: 2.5rem; 
+            color: #e10000; 
+            text-shadow: 0 0 10px rgba(225,0,0,0.4); 
+            margin-bottom: 15px; 
+            font-weight: 800; 
+            letter-spacing: 1px; 
+        }
+        .rule-card { 
+            background: #262421; 
+            border-radius: 6px; 
+            padding: 20px; 
+            max-width: 550px; 
+            text-align: left; 
+            margin-bottom: 20px; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3); 
+        }
         
-        .btn { background: #81b64c; color: white; border: none; padding: 14px 32px; font-size: 1.2rem; font-weight: bold; cursor: pointer; border-radius: 5px; margin: 5px; transition: background 0.2s, transform 0.1s; }
+        .btn { 
+            background: #81b64c; 
+            color: white; 
+            border: none; 
+            padding: 12px 28px; 
+            font-size: 1.1rem; 
+            font-weight: bold; 
+            cursor: pointer; 
+            border-radius: 5px; 
+            margin: 5px; 
+            transition: background 0.2s, transform 0.1s; 
+        }
         .btn:hover { background: #a3d16c; transform: translateY(-2px); }
 
-        /* CHESS.COM DASHBOARD THEME */
-        .game-layout { display: grid; grid-template-columns: 260px 420px 320px; gap: 24px; align-items: start; max-width: 1060px; margin: 0 auto; padding: 20px; box-sizing: border-box; }
+        .btn-danger {
+            background: #e06c75;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+        .btn-danger:hover { background: #be5046; }
 
-        .profile-side { background: #262421; border-radius: 6px; padding: 24px 16px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
-        .avatar-frame { width: 110px; height: 110px; margin: 0 auto 16px; border-radius: 50%; background: #3d3b36; display: flex; align-items: center; justify-content: center; border: 4px solid #b33939; }
+        /* CHESS.COM DASHBOARD THEME */
+        .game-layout { 
+            display: grid; 
+            grid-template-columns: 260px 420px 320px; 
+            gap: 24px; 
+            align-items: start; 
+            max-width: 1060px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            box-sizing: border-box; 
+        }
+
+        .profile-side { 
+            background: #262421; 
+            border-radius: 6px; 
+            padding: 24px 16px; 
+            text-align: center; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4); 
+        }
+        .avatar-frame { 
+            width: 110px; 
+            height: 110px; 
+            margin: 0 auto 16px; 
+            border-radius: 50%; 
+            background: #3d3b36; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            border: 4px solid #b33939; 
+        }
         .martin-name { font-size: 1.4rem; font-weight: bold; color: #fff; margin-bottom: 4px; }
-        .martin-title { font-size: 0.75rem; background: #b33939; color: white; padding: 3px 10px; border-radius: 3px; font-weight: bold; text-transform: uppercase; }
+        .martin-title { 
+            font-size: 0.75rem; 
+            background: #b33939; 
+            color: white; 
+            padding: 3px 10px; 
+            border-radius: 3px; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+        }
 
         .center-side { display: flex; flex-direction: column; align-items: center; }
+        
+        /* TIME CONTROL SELECTOR & TIMERS */
+        .time-selector-container {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: #abb2bf;
+        }
+        .time-selector-container select {
+            background: #21252b;
+            color: #abb2bf;
+            border: 1px solid #4b5263;
+            padding: 5px 10px;
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+        }
+
         .timer-container { display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; width: 100%; }
         .timer-box { background: #262421; padding: 10px 16px; border-radius: 4px; flex: 1; text-align: center; border: 2px solid #3d3b36; }
         .timer-val { font-size: 1.8rem; font-weight: bold; font-family: monospace; color: white; }
@@ -63,9 +181,9 @@
         <div class="rule-card">
             <p style="text-align:center; color:#ff5252; font-weight:bold; margin-top:0; font-size:1.1rem;">EXHAUSTION MODE CONTROLS ENGAGED:</p>
             <ul style="font-size: 0.85rem; line-height: 1.5; padding-left: 20px; color: #bababa;">
-                <li><b>Tired Pieces:</b> Pawns only move 1 square. No piece can touch the board edges (ranks 1, 8 or files a, h). Your King is fully frozen.</li>
-                <li><b>Exhaustion Chain:</b> You cannot make back-to-back moves with the same piece.</li>
-                <li><b>Untrained Knights:</b> Knights bypass edge restrictions but have a 25% chance to move to a random incorrect square!</li>
+                <li><b>Tired Pieces:</b> Pawns move 1 square. Outer edges (ranks 1, 8 or files a, h) are blocked. King is frozen.</li>
+                <li><b>Exhaustion Chain:</b> No back-to-back moves with the same piece.</li>
+                <li><b>Untrained Knights:</b> Knights bypass edge restrictions but have a 25% chance to wander.</li>
                 <li><b>Omni En Passant:</b> Martin can en passant *any* piece adjacent to his pawns.</li>
                 <li><b>Anti-Blunder System:</b> 8% chance Martin rejects an unguarded piece capture.</li>
                 <li><b>Speed Trap:</b> Moving in &lt; 3 seconds freezes your board for 15 seconds.</li>
@@ -87,13 +205,28 @@
             <div class="martin-name">Martin</div>
             <span class="martin-title">Bot</span>
             <p style="font-size: 0.85rem; color: #989795; margin-top: 20px; font-style: italic;">"I enjoy playing chess with my children."</p>
+            
+            <!-- RESIGN BUTTON -->
+            <button id="resign-btn" class="btn-danger" onclick="resignGame()">Resign 🏳️</button>
         </div>
 
         <div class="center-side">
+            <!-- TIME CONTROL SELECTION -->
+            <div class="time-selector-container">
+                <label for="time-select">Time Control:</label>
+                <select id="time-select" onchange="changeTimeControl(this.value)">
+                    <option value="60">1 Min (Bullet)</option>
+                    <option value="180">3 Min (Blitz)</option>
+                    <option value="300">5 Min (Rapid)</option>
+                    <option value="1200" selected>20 Min (Classic)</option>
+                    <option value="infinite">∞ Unlimited</option>
+                </select>
+            </div>
+
             <div class="timer-container">
                 <div class="timer-box" id="martin-timer">
                     <span style="font-size: 0.75rem; color: #989795; font-weight:bold;">Martin</span><br>
-                    <span class="timer-val">∞</span>
+                    <span class="timer-val" id="martin-time">∞</span>
                 </div>
                 <div class="timer-box" id="player-timer">
                     <span style="font-size: 0.75rem; color: #989795; font-weight:bold;" id="player-label">You</span><br>
@@ -129,8 +262,11 @@
         var blitzDone = false;
         var isGameOver = false;
         var isMoveFrozen = false; 
-        var playerTime = 1200; // 20-minute fixed challenge time
+        
+        var selectedTime = 1200; // Default 20 mins
+        var playerTime = 1200; 
         var timerInterval = null;
+        
         var lastMoveTimestamp = null;
         var lastMovedSquare = null;
         var playerColor = 'w'; 
@@ -159,39 +295,62 @@
             setTimeout(martinBlitz, 800);
         }
 
+        function changeTimeControl(val) {
+            if (val === "infinite") {
+                selectedTime = Infinity;
+                playerTime = Infinity;
+                $('#time-left').text("∞");
+            } else {
+                selectedTime = parseInt(val);
+                playerTime = selectedTime;
+                updateTimerDisplay();
+            }
+        }
+
+        function updateTimerDisplay() {
+            if (playerTime === Infinity) {
+                $('#time-left').text("∞");
+                return;
+            }
+            let m = Math.floor(playerTime / 60);
+            let s = playerTime % 60;
+            $('#time-left').text(`${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+        }
+
         function startTimer() {
+            clearInterval(timerInterval);
             timerInterval = setInterval(() => {
-                if (blitzDone && !isGameOver && game.turn() === playerColor) {
+                if (blitzDone && !isGameOver && game.turn() === playerColor && playerTime !== Infinity) {
                     playerTime--;
-                    let m = Math.floor(playerTime / 60);
-                    let s = playerTime % 60;
-                    $('#time-left').text(`${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
-                    if (playerTime <= 0) endGame("TIME EXPIRED!", "Martin wins.");
+                    updateTimerDisplay();
+                    if (playerTime <= 0) endGame("TIME EXPIRED!", "Martin wins on time.");
                 }
             }, 1000);
         }
 
-        // FILTER LEGAL MOVES TO COMPLY WITH HANDICAP RULES
+        function resignGame() {
+            if (isGameOver) return;
+            if (confirm("Are you sure you want to resign against Impossible Martin?")) {
+                endGame("RESIGNED!", "You surrendered. Martin wins! 🤖🏆");
+            }
+        }
+
         function getCustomLegalMoves(square) {
             let legalMoves = game.moves({ square: square, verbose: true });
             let piece = game.get(square);
             if (!piece || piece.color !== playerColor) return [];
 
             return legalMoves.filter(m => {
-                // 1. King cannot move at all
-                if (piece.type === 'k') return false;
+                if (piece.type === 'k') return false; // King frozen
 
-                // 2. Pawns can only move one square
                 if (piece.type === 'p') {
                     let fromRow = parseInt(m.from[1]);
                     let toRow = parseInt(m.to[1]);
                     if (Math.abs(fromRow - toRow) > 1) return false;
                 }
 
-                // 3. Knights are not tired (Bypass edge rules)
-                if (piece.type === 'n') return true;
+                if (piece.type === 'n') return true; // Knights ignore edge restrictions
 
-                // 4. Other pieces cannot reach the outer boundaries/edges
                 let file = m.to[0];
                 let rank = m.to[1];
                 if (file === 'a' || file === 'h' || rank === '1' || rank === '8') return false;
@@ -203,7 +362,7 @@
         function onDragStart(source, piece) {
             if (isGameOver || !blitzDone || isMoveFrozen) return false;
             if (piece.search(new RegExp('^' + martinColor)) !== -1) return false;
-            if (lastMovedSquare === source) return false; // Exhaustion Rule check
+            if (lastMovedSquare === source) return false; 
             highlightMovesForSquare(source);
         }
 
@@ -283,19 +442,19 @@
         function onDrop(source, target) {
             if (isMoveFrozen || source === target) return 'snapback';
 
-            // Verify move intent falls inside calculated legal restrictions
             let customMoves = getCustomLegalMoves(source);
             let verifiedMove = customMoves.find(m => m.to === target);
             if (!verifiedMove) return 'snapback';
 
             // SPEED PENALTY CHECK
             if (blitzDone && lastMoveTimestamp && (Date.now() - lastMoveTimestamp < 3000)) {
-                playerTime -= 15;
+                if (playerTime !== Infinity) playerTime -= 15;
+                updateTimerDisplay();
                 trigger15SecondFreeze();
                 return 'snapback';
             }
 
-            // ANTI-BLUNDER GUARD SYSTEM (8% Check on unguarded pieces)
+            // ANTI-BLUNDER GUARD SYSTEM (8% Check)
             if (game.get(target) && Math.random() < 0.08) {
                 let attackerColor = game.get(source).color;
                 game.move({ from: source, to: target, promotion: 'q' });
@@ -308,10 +467,10 @@
                 }
             }
 
-            // EXHAUSTION SYSTEM MATCH TRACKING
+            // EXHAUSTION CHECK
             if (lastMovedSquare === source) return 'snapback';
 
-            // UNTRAINED KNIGHT EXCEPTION (25% Chance to deviate completely)
+            // UNTRAINED KNIGHT EXCEPTION
             let currentPiece = game.get(source);
             if (currentPiece.type === 'n' && Math.random() < 0.25) {
                 let allKnightMoves = game.moves({ square: source, verbose: true });
@@ -325,7 +484,7 @@
             renderMoveLog();
             clearHighlights();
 
-            lastMovedSquare = target; // Lock out this piece square from moving next turn
+            lastMovedSquare = target; 
 
             $('#player-timer').removeClass('active-timer');
             $('#martin-timer').addClass('active-timer');
@@ -392,6 +551,7 @@
             clearInterval(timerInterval);
             $('#status').text(s);
             $('#chat').text(m);
+            $('#resign-btn').prop('disabled', true).css('opacity', '0.5');
         }
 
         function martinBlitz() {
